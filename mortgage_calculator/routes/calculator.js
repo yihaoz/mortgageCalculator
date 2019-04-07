@@ -25,6 +25,8 @@ function convertByPaymentSchedule(paymentSchedule, curInterest, amortizationPeri
     };
 }
 
+var paymentScheduleOptions = ["biweekly", "weekly", "monthly"];
+
 // Get the recurring payment amount of a mortgage
 router.get("/payment-amount", function(req, res) {
     // validate inputs
@@ -61,10 +63,12 @@ router.get("/payment-amount", function(req, res) {
         amortizationPeriod = req.body.amortizationPeriod;
     }
     paymentSchedule = req.body.paymentSchedule;
+
+    // if by requirements there is required supported range for each input, it also needs to be 
+    // verified here
     if (isNaN(askingPrice) || askingPrice < 0) {
         return res.status(422).json({errors: "Invalid askingPrice"});
     }
-    var paymentScheduleOptions = ["biweekly", "weekly", "monthly"];
     if (typeof(paymentSchedule) != "string" || !paymentScheduleOptions.includes(paymentSchedule.toLowerCase())) {
         return res.status(422).json({errors: "Invalid paymentSchedule"});
     }
@@ -154,9 +158,10 @@ router.get("/mortgage-amount", function(req, res) {
     else {
         amortizationPeriod = req.body.amortizationPeriod;
     }
+
     paymentSchedule = req.body.paymentSchedule;
-    var paymentScheduleOptions = ["biweekly", "weekly", "monthly"];
-    
+    // if by requirements there is required supported range for each input, it also needs to be 
+    // verified here
     if (isNaN(paymentAmount) || paymentAmount < 0) {
         return res.status(422).json({errors: "Invalid paymentAmount"});
     }
@@ -179,6 +184,7 @@ router.get("/mortgage-amount", function(req, res) {
         var periodRate = result.periodRate;
         
         var mortgageAmount = paymentAmount / (periodRate * Math.pow((1 + periodRate), numPayments)) * (Math.pow((1 + periodRate), numPayments) - 1);
+        // not sure why I need to add down payment into mortgage amount but the document said it should be added to the maximum morrgage returned
         mortgageAmount += downPayment;
         // Since down payment is optional for this request, I think we don't need to consider insurance for this case
         // The mortgageAmount I calculated is Loan Principal with possible insurance + downpayment(if present)
@@ -197,7 +203,7 @@ router.patch("/interest-rate", function(req, res) {
     if (typeof interestRate === "string") {
         interestRate = Number(interestRate)
     }
-
+    // if requirement has supported range for interest rate, it should also be verified here.
     if (isNaN(interestRate) || interestRate < 0 || interestRate > 1) {
         return res.status(422).json({errors: "Invalid interest rate"});
     }
