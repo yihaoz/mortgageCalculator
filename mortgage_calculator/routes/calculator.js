@@ -1,12 +1,19 @@
-var express = require("express");
-var router  = express.Router();
+const express = require("express");
+const router  = express.Router();
 
 Mortgage = require("../models/mortgageCalculator");
 
+const   askingPriceReq = "askingPrice", 
+        downPaymentReq = "downPayment",
+        paymentScheduleReq = "paymentSchedule",
+        amortizationPeriodReq = "amortizationPeriod",
+        paymentAmountReq = "paymentAmount",
+        interestRateReq = "interestRate",
+        paymentScheduleOptions = ["biweekly", "weekly", "monthly"];
+
 // convert period interest rate and payment numbers by payment schedule
-function convertByPaymentSchedule(paymentSchedule, curInterest, amortizationPeriod) {
-    var numPayments = 0;
-    var periodRate = 0;
+function convertByPaymentSchedule(paymentSchedule, amortizationPeriod) {
+    let numPayments = 0, periodRate = 0;
     if (paymentSchedule.toLowerCase() === "weekly") {
         numPayments = Math.ceil(365 * amortizationPeriod / 7);
         periodRate = Math.pow((1 + curInterest), (1 / numPayments)) - 1;
@@ -25,24 +32,25 @@ function convertByPaymentSchedule(paymentSchedule, curInterest, amortizationPeri
     };
 }
 
-var paymentScheduleOptions = ["biweekly", "weekly", "monthly"];
-
 // Get the recurring payment amount of a mortgage
 router.get("/payment-amount", function(req, res) {
     // validate inputs
-    if (!req.body.hasOwnProperty("askingPrice")) {
+    if (!req.body.hasOwnProperty(askingPriceReq)) {
         return res.status(400).json({ errors: "Missing askingPrice"});
     }
-    if (!req.body.hasOwnProperty("downPayment")) {
+    if (!req.body.hasOwnProperty(downPaymentReq)) {
         return res.status(400).json({ errors: "Missing downPayment"});
     }
-    if (!req.body.hasOwnProperty("paymentSchedule")) {
+    if (!req.body.hasOwnProperty(paymentScheduleReq)) {
         return res.status(400).json({ errors: "Missing paymentSchedule"});
     }
-    if (!req.body.hasOwnProperty("amortizationPeriod")) {
+    if (!req.body.hasOwnProperty(amortizationPeriodReq)) {
         return res.status(400).json({ errors: "Missing amortizationPeriod"});
     }
-    var askingPrice, downPayment, paymentSchedule, amortizationPeriod;
+    let askingPrice, downPayment, paymentSchedule, amortizationPeriod;
+    
+    // when the input is empty string, it is converted to zero. 
+    // This conversion might be changed based on requirement
     if (typeof req.body.askingPrice === "string") {
         askingPrice = Number(req.body.askingPrice);
     }
@@ -75,8 +83,9 @@ router.get("/payment-amount", function(req, res) {
     if (isNaN(amortizationPeriod) || !Number.isInteger(amortizationPeriod) || amortizationPeriod < 5 || amortizationPeriod > 25) {
         return res.status(422).json({error: "Invalid amortizationPeriod"});
     }
+    
     // minimum downpayment
-    var minDownPayment = 0;
+    let minDownPayment = 0;
     if (askingPrice <= 50000) {
         minDownPayment = askingPrice * 0.05;
     }
@@ -87,8 +96,8 @@ router.get("/payment-amount", function(req, res) {
         return res.status(422).json({errors: "Invalid downPayment"});
     }
 
-    var insurance = 0;
-    var downPaymentRatio = downPayment / askingPrice;
+    let insurance = 0;
+    let downPaymentRatio = downPayment / askingPrice;
     if (askingPrice > 1000000) {
         insurance = 0;
     }
@@ -108,11 +117,11 @@ router.get("/payment-amount", function(req, res) {
             throw err;
         }
         curInterest = interests[0].rate;
-        var result = convertByPaymentSchedule(paymentSchedule, curInterest, amortizationPeriod);
-        var numPayments = result.numPayments;
-        var periodRate = result.periodRate;
+        let result = convertByPaymentSchedule(paymentSchedule, amortizationPeriod),
+            numPayments = result.numPayments,
+            periodRate = result.periodRate;
 
-        var paymentAmount = (askingPrice - downPayment) * (insurance + 1) * (periodRate * Math.pow((1 + periodRate), numPayments)) / (Math.pow((1 + periodRate), numPayments) - 1);
+        let paymentAmount = (askingPrice - downPayment) * (insurance + 1) * (periodRate * Math.pow((1 + periodRate), numPayments)) / (Math.pow((1 + periodRate), numPayments) - 1);
 
         res.json({
             "paymentAmount": paymentAmount
@@ -123,17 +132,17 @@ router.get("/payment-amount", function(req, res) {
 // Get the maximum mortgage amount
 router.get("/mortgage-amount", function(req, res) {
     // validate inputs
-    if (!req.body.hasOwnProperty("paymentAmount")) {
+    if (!req.body.hasOwnProperty(paymentAmountReq)) {
         return res.status(400).json({ errors: "Missing paymentAmount"});
     }
-    if (!req.body.hasOwnProperty("paymentSchedule")) {
+    if (!req.body.hasOwnProperty(paymentScheduleReq)) {
         return res.status(400).json({ errors: "Missing paymentSchedule"});
     }
-    if (!req.body.hasOwnProperty("amortizationPeriod")) {
+    if (!req.body.hasOwnProperty(amortizationPeriodReq)) {
         return res.status(400).json({ errors: "Missing amortizationPeriod"});
     }
-    var downPayment = 0;
-    if (req.body.hasOwnProperty("downPayment")) {
+    let downPayment = 0;
+    if (req.body.hasOwnProperty(downPaymentReq)) {
         if (typeof req.body.downPayment === "string") {
             downPayment = Number(req.body.downPayment);
         }
@@ -145,7 +154,9 @@ router.get("/mortgage-amount", function(req, res) {
         return res.status(422).json({errors: "Invalid downPayment"});
     }
 
-    var paymentAmount, paymentSchedule, amortizationPeriod;
+    // when the input is empty string, it is converted to zero. 
+    // This conversion might be changed based on requirement
+    let paymentAmount, paymentSchedule, amortizationPeriod;
     if (typeof req.body.paymentAmount === "string") {
         paymentAmount = Number(req.body.paymentAmount);
     }
@@ -179,11 +190,11 @@ router.get("/mortgage-amount", function(req, res) {
         }
         curInterest = interests[0].rate;
 
-        var result = convertByPaymentSchedule(paymentSchedule, curInterest, amortizationPeriod);
-        var numPayments = result.numPayments;
-        var periodRate = result.periodRate;
+        let result = convertByPaymentSchedule(paymentSchedule, amortizationPeriod),
+            numPayments = result.numPayments,
+            periodRate = result.periodRate;
         
-        var mortgageAmount = paymentAmount / (periodRate * Math.pow((1 + periodRate), numPayments)) * (Math.pow((1 + periodRate), numPayments) - 1);
+        let mortgageAmount = paymentAmount / (periodRate * Math.pow((1 + periodRate), numPayments)) * (Math.pow((1 + periodRate), numPayments) - 1);
         // not sure why I need to add down payment into mortgage amount but the document said it should be added to the maximum morrgage returned
         mortgageAmount += downPayment;
         // Since down payment is optional for this request, I think we don't need to consider insurance for this case
@@ -196,10 +207,10 @@ router.get("/mortgage-amount", function(req, res) {
 
 // Change the interest rate used by the application
 router.patch("/interest-rate", function(req, res) {
-    if (!req.body.hasOwnProperty("interestRate" )) {
+    if (!req.body.hasOwnProperty(interestRateReq)) {
         return res.status(422).json({ errors: "Missing interestRate"});
     }
-    var interestRate = req.body.interestRate;
+    let interestRate = req.body.interestRate;
     if (typeof interestRate === "string") {
         interestRate = Number(interestRate)
     }

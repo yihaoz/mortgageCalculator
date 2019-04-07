@@ -1,12 +1,12 @@
-var express = require("express"),
+const express = require("express"),
     app = express(),
     port = process.env.PORT || 8080
     bodyParser = require("body-parser"),
     mongoose = require("mongoose"),
     Mortgage = require("./models/mortgageCalculator");
-    
+
 // Requiring routes
-var calculatorRoutes = require("./routes/calculator");
+const calculatorRoutes = require("./routes/calculator");
 
 const url = 'mongodb://localhost:27017'
 mongoose.connect(url, (err, client) => {

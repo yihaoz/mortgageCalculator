@@ -1,6 +1,6 @@
-var mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-var mortgageSchema = mongoose.Schema({
+const mortgageSchema = mongoose.Schema({
     type: String, 
     rate: Number
 });
